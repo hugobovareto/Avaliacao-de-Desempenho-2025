@@ -1,5 +1,6 @@
 # Ignorar toda a pasta dados
 dados/
+outputs/
 
 # Ignorar ambiente virtual
 venv/
