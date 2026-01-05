@@ -1,6 +1,6 @@
 # Ignorar toda a pasta dados
 dados/
-outputs/
+relatorios_gerados/
 
 # Ignorar ambiente virtual
 venv/
