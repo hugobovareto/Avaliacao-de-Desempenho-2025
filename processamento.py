@@ -63,7 +63,7 @@ df_liderado = df_liderado.drop(columns=['Relação com o avaliado(a): '])
 # Trocar os nomes das colunas para facilitar a concatenação
 nomes_colunas = ['Nome',
                             'Lideranca_Desenvolvimento de Pessoas', 
-                            'Lideranca_Visao Estratégica',
+                            'Lideranca_Visão Estratégica',
                             'Lideranca_Delegação',
                             'Lideranca_Gerenciamento de Riscos',
                             'Lideranca_Monitoramento de Resultados',
@@ -145,8 +145,8 @@ map_resultados = {
 df_total["Lideranca_Desenvolvimento de Pessoas"] = (
     df_total["Lideranca_Desenvolvimento de Pessoas"].map(map_desenv_pessoas))
 
-df_total["Lideranca_Visao Estratégica"] = (
-    df_total["Lideranca_Visao Estratégica"].map(map_visao_estrategica))
+df_total["Lideranca_Visão Estratégica"] = (
+    df_total["Lideranca_Visão Estratégica"].map(map_visao_estrategica))
 
 df_total["Lideranca_Delegação"] = (
     df_total["Lideranca_Delegação"].map(map_delegacao))

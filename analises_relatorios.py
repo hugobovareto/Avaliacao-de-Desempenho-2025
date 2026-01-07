@@ -19,7 +19,7 @@ df_total = pd.read_csv('dados/processado_dados_avaliacao.csv')
 
 
 # Configurações de texto
-MAX_CARACTERES_POR_SLIDE = 800  # Limite de caracteres por slide
+MAX_CARACTERES_POR_SLIDE = 2000  # Limite de caracteres por slide
 TAMANHO_FONTE_TEXTO_LONGO = 10  # Tamanho da fonte para textos longos
 
 # =================== CONFIGURAÇÕES ===================
@@ -59,7 +59,7 @@ COLUNAS_GERAIS = [
 # Questões de liderança
 COLUNAS_LIDERANCA = [
     'Lideranca_Desenvolvimento de Pessoas',
-    'Lideranca_Visao Estratégica',
+    'Lideranca_Visão Estratégica',
     'Lideranca_Delegação',
     'Lideranca_Gerenciamento de Riscos',
     'Lideranca_Monitoramento de Resultados'
@@ -141,7 +141,7 @@ def criar_grafico_barras_questao(df_pessoa, questao, tipo_placeholder):
     nomes = [TIPOS_AMIGAVEIS[t] for t in tipos_presentes]
     
     bars = ax.bar(range(len(tipos_presentes)), valores, color=cores)
-    ax.set_ylim(0, 5)  # Escala de 0-5
+    ax.set_ylim(0, 6)  # Escala de 0-6
     
     # Adicionar valores nas barras
     for bar, valor in zip(bars, valores):
@@ -224,7 +224,8 @@ def criar_radar_geral(df_pessoa):
     angulos = [n / float(N) * 2 * np.pi for n in range(N)]
     angulos += angulos[:1]
     
-    fig, ax = plt.subplots(figsize=(6, 6), subplot_kw=dict(projection='polar'))
+    # Criar figura com mais espaço para a legenda
+    fig, ax = plt.subplots(figsize=(8, 8), subplot_kw=dict(projection='polar'))
     
     # Plotar cada tipo
     for tipo in dados_radar.keys():
@@ -236,17 +237,49 @@ def criar_radar_geral(df_pessoa):
     
     # Configurar
     ax.set_xticks(angulos[:-1])
-    ax.set_xticklabels(list(categorias.keys()))
+    
+    # Configurar labels com melhor espaçamento
+    xtick_labels = list(categorias.keys())
+    ax.set_xticklabels(xtick_labels, fontsize=11)
+    
+    # Ajustar posição das labels para ficarem fora do gráfico
+    for label, angle in zip(ax.get_xticklabels(), angulos[:-1]):
+        texto = label.get_text()
+
+        # Regra geral baseada no ângulo
+        if 0 <= angle < np.pi:
+            alinhamento = 'left'
+        else:
+            alinhamento = 'right'
+
+        # Exceções específicas
+        if texto == 'Relacionamento':
+            alinhamento = 'right'
+
+        if texto == 'Execução':
+            alinhamento = 'left'
+
+        label.set_horizontalalignment(alinhamento)
+        label.set_rotation(angle * 180 / np.pi - 90)
+
+
     ax.set_ylim(0, 5)
     ax.set_yticks([1, 2, 3, 4, 5])
-    ax.set_yticklabels(['1', '2', '3', '4', '5'])
-    ax.legend(loc='upper right', bbox_to_anchor=(1.3, 1.1))
+    ax.set_yticklabels(['1', '2', '3', '4', '5'], fontsize=9)
     
-    plt.tight_layout()
+    # Adicionar grade para melhor visualização
+    ax.grid(True, alpha=0.3)
+    
+    # Posicionar legenda fora do gráfico
+    ax.legend(loc='upper left', bbox_to_anchor=(-0.35, 1.25), 
+              fontsize=10, framealpha=0.9)
+    
+    # Ajustar layout para dar mais espaço
+    plt.tight_layout(rect=[0, 0, 1, 1]) 
     
     # Salvar gráfico
     caminho_grafico = os.path.join(DIRETORIO_GRAFICOS_TEMP, f"radar_geral_{id(df_pessoa)}.png")
-    fig.savefig(caminho_grafico, dpi=150, bbox_inches='tight')
+    fig.savefig(caminho_grafico, dpi=150, bbox_inches='tight', pad_inches=0.5)
     plt.close(fig)
     
     return caminho_grafico
@@ -275,7 +308,8 @@ def criar_radar_lideranca(df_pessoa):
     angulos = [n / float(N) * 2 * np.pi for n in range(N)]
     angulos += angulos[:1]
     
-    fig, ax = plt.subplots(figsize=(6, 6), subplot_kw=dict(projection='polar'))
+    # Criar figura com mais espaço para a legenda
+    fig, ax = plt.subplots(figsize=(8, 8), subplot_kw=dict(projection='polar'))
     
     # Encurtar nomes para o radar
     labels = [q.replace('Lideranca_', '').replace('_', ' ') for q in COLUNAS_LIDERANCA]
@@ -290,17 +324,45 @@ def criar_radar_lideranca(df_pessoa):
     
     # Configurar
     ax.set_xticks(angulos[:-1])
-    ax.set_xticklabels(labels, fontsize=9)
+    
+    # Configurar labels com melhor espaçamento
+    ax.set_xticklabels(labels, fontsize=10)
+    
+    # Ajustar posição das labels para ficarem fora do gráfico
+    for label, angle in zip(ax.get_xticklabels(), angulos[:-1]):
+        texto = label.get_text()
+    
+        # Regra geral baseada no ângulo
+        if 0 <= angle < np.pi:
+            alinhamento = 'left'
+        else:
+            alinhamento = 'right'
+
+        # Exceções específicas
+        if texto == 'Delegação':
+            alinhamento = 'right'
+
+        label.set_horizontalalignment(alinhamento)
+        label.set_rotation(angle * 180 / np.pi - 90)
+
+
     ax.set_ylim(0, 5)
     ax.set_yticks([1, 2, 3, 4, 5])
-    ax.set_yticklabels(['1', '2', '3', '4', '5'])
-    ax.legend(loc='upper right', bbox_to_anchor=(1.3, 1.1))
+    ax.set_yticklabels(['1', '2', '3', '4', '5'], fontsize=9)
     
-    plt.tight_layout()
+    # Adicionar grade para melhor visualização
+    ax.grid(True, alpha=0.3)
+    
+    # Posicionar legenda fora do gráfico
+    ax.legend(loc='upper left', bbox_to_anchor=(-0.35, 1.25), 
+              fontsize=10, framealpha=0.9)
+    
+    # Ajustar layout para dar mais espaço
+    plt.tight_layout()  
     
     # Salvar gráfico
     caminho_grafico = os.path.join(DIRETORIO_GRAFICOS_TEMP, f"radar_lideranca_{id(df_pessoa)}.png")
-    fig.savefig(caminho_grafico, dpi=150, bbox_inches='tight')
+    fig.savefig(caminho_grafico, dpi=150, bbox_inches='tight', pad_inches=0.5)
     plt.close(fig)
     
     return caminho_grafico
@@ -713,14 +775,6 @@ if __name__ == "__main__":
         os.makedirs(DIRETORIO_GRAFICOS_TEMP, exist_ok=True)
     except:
         pass
-
-
-
-
-
-
-
-
 
 
 
