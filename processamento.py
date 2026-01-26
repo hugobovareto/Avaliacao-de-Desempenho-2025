@@ -19,8 +19,67 @@ df_autoavaliacao = pd.read_excel('dados/Autoavaliação da equipe GA RN 2025 (re
 
 df_avaliacao = pd.read_excel('dados/Avaliação da equipe GA RN (Líder __ Liderado) (respostas).xlsx')
 
+
+# Dataframe somente com os nomes, cargos e frentes de atuação
+df_cargos_frentes = df_autoavaliacao[['Nome completo','Qual seu cargo/função?','Qual sua Frente de atuação?']]
+df_cargos_frentes = df_cargos_frentes.rename(columns={'Nome completo': 'Nome',
+                                                  'Qual seu cargo/função?': 'Cargo',
+                                                  'Qual sua Frente de atuação?': 'Frente de atuação'})
+
+
+# Dataframe com os líderes e liderados por pessoa
+# Renomear as colunas
+df_av = df_avaliacao.rename(columns={
+    'Selecione o nome do(a) colaborador(a) que você está avaliando:': 'avaliado',
+    'Avaliador(a), selecione o seu nome completo:': 'avaliador',
+    'Relação com o avaliado(a): ': 'relacao'
+})
+
+# Criar colunas auxiliares para líderes e liderados
+df_av['lideres'] = df_av.apply(
+    lambda x: x['avaliador'] if x['relacao'] == 'Avaliado(a) é meu liderado' else None,
+    axis=1
+)
+
+df_av['liderados'] = df_av.apply(
+    lambda x: x['avaliador'] if x['relacao'] == 'Avaliado(a) é meu líder' else None,
+    axis=1
+)
+
+# Agregar por avaliado
+df_agregado = (
+    df_av
+    .groupby('avaliado', as_index=False)
+    .agg(
+        Lideres=('lideres', lambda x: list(x.dropna())),
+        Liderados=('liderados', lambda x: list(x.dropna()))
+    )
+)
+
+# Criar df_avaliados a partir do df_cargo_frentes
+df_avaliados = (
+    df_cargos_frentes[['Nome']]
+    .drop_duplicates()
+    .merge(
+        df_agregado,
+        left_on='Nome',
+        right_on='avaliado',
+        how='left'
+    )
+    .drop(columns='avaliado')
+)
+
+# Preencher valores NaN com listas vazias
+df_avaliados['Lideres'] = df_avaliados['Lideres'].apply(
+    lambda x: x if isinstance(x, list) else []
+)
+
+df_avaliados['Liderados'] = df_avaliados['Liderados'].apply(
+    lambda x: x if isinstance(x, list) else []
+)
+
 # Limpeza das colunas desnecessárias
-df_autoavaliacao = df_autoavaliacao = df_autoavaliacao.drop(columns=
+df_autoavaliacao = df_autoavaliacao.drop(columns=
                                  ['Carimbo de data/hora', 
                                   'Endereço de e-mail', 
                                   'Qual seu e-mail com domínio @FGV:', 
@@ -109,7 +168,7 @@ map_desenv_pessoas = {
 }
 
 map_visao_estrategica = {
-    "Realiza suas atividades de forma automática e com uma preocupação apenas no operacional. Não relaciona suas ações aos objetivos maiores da sua área ou projeto. Tem dificuldade em compreender ou comunicar a estratégia para a equipe gerando inseguranças, retrabalhos e desmotivação": 1,
+    "Realiza suas atividades de forma automática e com uma preocupação apenas no operacional. Não relaciona suas ações aos objetivos maiores da sua área ou projeto. Tem dificuldade em compreender ou comunicar a estratégia para a equipe gerando inseguranças, retrabalhos e desmotivação.": 1,
     "Demonstra alguma percepção sobre objetivos finais da área ou projeto, mas tem dificuldade em conectar o trabalho do dia a dia com essa estratégia maior. Costuma agir de forma imediatista e reativa tomando decisões desalinhadas ou  perdendo oportunidades por falta de análise mais ampla dos cenários e contextos.": 2,
     "Analisa cenários para antecipar tendências e oportunidades, tomando decisões fundamentadas e alinhadas aos objetivos da área ou projeto. Conecta atividades diárias à estratégia da empresa, promovendo inovação e sustentabilidade.": 3,
     "Toma decisões alinhadas à estratégia e incentiva o time a pensar com visão sistêmica. Considera impactos sustentáveis (sociais, ambientais, financeiros) nos projetos ou área. Atua como ponte entre níveis operacionais e estratégicos.": 4,
@@ -158,12 +217,40 @@ df_total["Lideranca_Monitoramento de Resultados"] = (
     df_total["Lideranca_Monitoramento de Resultados"].map(map_resultados))
 
 
+# Merge do df_total com o df_cargos_frentes para adicionar cargos e frentes de atuação
+df_total = df_total.merge(
+    df_cargos_frentes,
+    left_on='Nome',
+    right_on='Nome',
+    how='left'
+)
+
+
+# Merge do df_total com o df_avaliados para adicionar líderes e liderados
+df_total = df_total.merge(
+    df_avaliados,
+    left_on='Nome',
+    right_on='Nome',
+    how='left'
+)
+
+# Normalização pós merge
+df_total['Lideres'] = df_total['Lideres'].apply(
+    lambda x: x if isinstance(x, list) else []
+)
+
+df_total['Liderados'] = df_total['Liderados'].apply(
+    lambda x: x if isinstance(x, list) else []
+)
+
+# Garantir que as colunas 'Lideres' e 'Liderados' sejam listas
+df_total['Lideres'] = df_total['Lideres'].apply(lambda x: x if isinstance(x, list) else [])
+df_total['Liderados'] = df_total['Liderados'].apply(lambda x: x if isinstance(x, list) else [])
+
+
+
 # Salvar o dataframe processado em um novo arquivo csv para análises e relatórios
 df_total.to_csv('dados/processado_dados_avaliacao.csv', index=False)
-
-
-
-
 
 
 

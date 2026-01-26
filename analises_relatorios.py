@@ -9,6 +9,7 @@ from pptx.util import Inches, Pt
 from pptx.enum.text import PP_ALIGN
 from pptx.dml.color import RGBColor
 import warnings
+from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
 warnings.filterwarnings('ignore')
 
 
@@ -17,10 +18,6 @@ warnings.filterwarnings('ignore')
 # Carregando o dataframe processado
 df_total = pd.read_csv('dados/processado_dados_avaliacao.csv')
 
-
-# Configurações de texto
-MAX_CARACTERES_POR_SLIDE = 2000  # Limite de caracteres por slide
-TAMANHO_FONTE_TEXTO_LONGO = 10  # Tamanho da fonte para textos longos
 
 # =================== CONFIGURAÇÕES ===================
 DIRETORIO_BASE = r"D:\Scripts_Python\FGV\Avaliacoes_de_Desempenho_2025"
@@ -367,6 +364,68 @@ def criar_radar_lideranca(df_pessoa):
     
     return caminho_grafico
 
+
+def substituir_respostas_abertas(slide, placeholder_tag, lista_respostas, texto_vazio="Não informado"):
+    """
+    Substitui um placeholder por uma lista de respostas abertas, cada uma em um parágrafo.
+    """
+    # Procurar pelo placeholder no slide
+    for shape in slide.shapes:
+        if not hasattr(shape, "text") or not shape.has_text_frame:
+            continue
+            
+        if f"{{{{{placeholder_tag}}}}}" in shape.text:
+            # Limpar o texto atual
+            shape.text = ""
+            
+            # Adicionar o novo texto
+            text_frame = shape.text_frame
+            text_frame.clear()
+            text_frame.word_wrap = True
+            
+            # Se não houver respostas, usar texto_vazio
+            if not lista_respostas or len(lista_respostas) == 0:
+                p = text_frame.add_paragraph()
+                p.text = texto_vazio
+                p.alignment = PP_ALIGN.CENTER
+                p.space_before = Pt(0)
+                
+                for run in p.runs:
+                    run.font.size = Pt(10)
+                    run.font.color.rgb = RGBColor(0xC4, 0x80, 0x3F)  # #C4803F
+                    run.font.name = 'Calibri'
+            else:
+                # Adicionar cada resposta como um parágrafo separado
+                for i, resposta in enumerate(lista_respostas):
+                    p = text_frame.add_paragraph()
+                    p.text = str(resposta).strip()
+                    p.alignment = PP_ALIGN.LEFT  # Respostas alinhadas à esquerda
+                    p.space_before = Pt(0)
+                    
+                    # Formatar
+                    for run in p.runs:
+                        run.font.size = Pt(10)
+                        run.font.color.rgb = RGBColor(0, 0, 0)  # Preto para respostas
+                        run.font.name = 'Calibri'
+                    
+                    # Adicionar espaço entre parágrafos (exceto no último)
+                    if i < len(lista_respostas) - 1:
+                        p.space_after = Pt(12)  # Espaço maior entre respostas
+            
+            # Configurar margens
+            text_frame.margin_left = 0
+            text_frame.margin_right = 0
+            text_frame.margin_top = 0
+            text_frame.margin_bottom = 0
+            
+            shape.text_frame.vertical_anchor = MSO_ANCHOR.TOP
+            
+            return True
+    
+    return False
+
+
+
 def limpar_placeholders(slide):
     """Remove os placeholders {{...}} do slide"""
     for shape in slide.shapes:
@@ -431,6 +490,323 @@ def substituir_texto_formatado(slide, placeholder, valor, tamanho_fonte=14, cor_
             return True
     return False
 
+def substituir_lista_em_placeholder(slide, placeholder_tag, lista_itens, texto_vazio="Nenhum"):
+    """
+    Substitui um placeholder por uma lista de itens, cada um em uma linha.
+    
+    Args:
+        slide: Slide do python-pptx
+        placeholder_tag: Nome do placeholder (sem chaves)
+        lista_itens: Lista de strings ou string separada por vírgulas
+        texto_vazio: Texto a ser exibido se a lista for vazia
+    """
+    # Converter para lista se for string
+    if isinstance(lista_itens, str):
+        # Remover colchetes e aspas se existirem
+        if lista_itens.startswith('[') and lista_itens.endswith(']'):
+            # Remover colchetes e dividir por vírgula
+            lista_itens = lista_itens[1:-1]
+            # Dividir por vírgula, removendo aspas extras
+            itens = [item.strip().strip("'\"") for item in lista_itens.split(',') if item.strip()]
+        else:
+            # Se for string simples, tratar como lista de um item
+            itens = [lista_itens.strip()] if lista_itens.strip() else []
+    elif isinstance(lista_itens, list):
+        itens = lista_itens
+    else:
+        itens = []
+    
+    # Remover itens vazios
+    itens = [item for item in itens if str(item).strip()]
+    
+    # Se não houver itens, usar texto_vazio
+    if not itens:
+        texto_final = texto_vazio
+        num_itens = 1
+    else:
+        # Juntar com quebras de linha
+        texto_final = '\n'.join(itens)
+        num_itens = len(itens)
+    
+    # Procurar pelo placeholder no slide
+    for shape in slide.shapes:
+        if not hasattr(shape, "text"):
+            continue
+            
+        if not shape.has_text_frame:
+            continue
+            
+        # Procurar pelo placeholder no texto
+        if f"{{{{{placeholder_tag}}}}}" in shape.text:
+            # Limpar o texto atual
+            shape.text = ""
+            
+            # Adicionar o novo texto
+            text_frame = shape.text_frame
+            text_frame.clear()  # Limpar todos os parágrafos
+            
+            # Configurar as propriedades do text_frame
+            text_frame.word_wrap = True
+            
+            # Adicionar parágrafos para cada item
+            if num_itens > 1:
+                for i, item in enumerate(itens):
+                    p = text_frame.add_paragraph()
+                    p.text = str(item)
+                    p.alignment = PP_ALIGN.CENTER  # Centralizar parágrafo
+                    p.space_before = Pt(0)
+                    
+                    # Formatar o run
+                    for run in p.runs:
+                        run.font.size = Pt(9)
+                        run.font.color.rgb = RGBColor(0xC4, 0x80, 0x3F)  # #C4803F
+                        run.font.name = 'Nunito'
+                    
+                    # Não adicionar espaço após o último parágrafo
+                    if i < num_itens - 1:
+                        p.space_after = Pt(6)  # Espaço entre linhas
+            else:
+                # Apenas um item (ou texto_vazio)
+                p = text_frame.add_paragraph()
+                p.text = texto_final
+                p.alignment = PP_ALIGN.CENTER  # Centralizar parágrafo
+                p.space_before = Pt(0)
+
+
+                for run in p.runs:
+                    run.font.size = Pt(9)
+                    run.font.color.rgb = RGBColor(0xC4, 0x80, 0x3F)
+                    run.font.name = 'Nunito'
+            
+            # Configurar margens e alinhamento
+            text_frame.margin_left = 0
+            text_frame.margin_right = 0
+            text_frame.margin_top = 0
+            text_frame.margin_bottom = 0
+            
+            # Ajustar o alinhamento vertical se necessário
+            shape.text_frame.vertical_anchor = MSO_ANCHOR.TOP
+            
+            break  # Sai do loop após encontrar e substituir
+
+
+def calcular_media_competencias(df, COLUNAS_GERAIS):
+    """
+    Retorna vetor com a média das competências.
+    """
+    return df[COLUNAS_GERAIS].mean().values
+
+
+def radar_avaliado(df_pessoa, COLUNAS_GERAIS):
+    auto = df_pessoa[df_pessoa['Tipo'] == 'autoavaliacao']
+    lideres = df_pessoa[df_pessoa['Tipo'] == 'avaliacao_pelo_lider']
+    liderados = df_pessoa[df_pessoa['Tipo'] == 'avaliacao_pelo_liderado']
+
+    return (
+        calcular_media_competencias(auto, COLUNAS_GERAIS) +
+        calcular_media_competencias(lideres, COLUNAS_GERAIS) +
+        calcular_media_competencias(liderados, COLUNAS_GERAIS)
+    ) / 3
+
+
+def radar_frente(df_total, frente, COLUNAS_GERAIS):
+    df_frente = df_total[df_total['Frente de atuação'] == frente]
+
+    auto = df_frente[df_frente['Tipo'] == 'autoavaliacao']
+    lideres = df_frente[df_frente['Tipo'] == 'avaliacao_pelo_lider']
+    liderados = df_frente[df_frente['Tipo'] == 'avaliacao_pelo_liderado']
+
+    return (
+        calcular_media_competencias(auto, COLUNAS_GERAIS) +
+        calcular_media_competencias(lideres, COLUNAS_GERAIS) +
+        calcular_media_competencias(liderados, COLUNAS_GERAIS)
+    ) / 3
+
+
+def radar_geral(df_total, COLUNAS_GERAIS):
+    auto = df_total[df_total['Tipo'] == 'autoavaliacao']
+    lideres = df_total[df_total['Tipo'] == 'avaliacao_pelo_lider']
+    liderados = df_total[df_total['Tipo'] == 'avaliacao_pelo_liderado']
+
+    return (
+        calcular_media_competencias(auto, COLUNAS_GERAIS) +
+        calcular_media_competencias(lideres, COLUNAS_GERAIS) +
+        calcular_media_competencias(liderados, COLUNAS_GERAIS)
+    ) / 3
+
+
+def calcular_nota_geral(nota_auto, nota_lider, nota_liderado, ndigits=1):
+    notas = [nota_auto, nota_lider, nota_liderado]
+    notas_validas = [n for n in notas if pd.notna(n)]
+
+    if not notas_validas:
+        return None
+
+    return round(sum(notas_validas) / len(notas_validas), ndigits)
+
+
+def calcular_nota_lider_geral(nota_lider_auto, nota_lider_lider, nota_lider_liderado, ndigits=1):
+    notas = [nota_lider_auto, nota_lider_lider, nota_lider_liderado]
+    notas_validas = [n for n in notas if pd.notna(n)]
+
+    if not notas_validas:
+        return None
+
+    return round(sum(notas_validas) / len(notas_validas), ndigits)
+
+
+
+# Função alternativa que mantém mais fiel à original mas calcula média das 3 fontes
+def criar_radar_comparativo(df_total, nome_pessoa):
+    """Versão alternativa que calcula média das 3 fontes separadamente"""
+    df_pessoa = filtrar_dados_pessoa(df_total, nome_pessoa)
+    
+    if df_pessoa.empty:
+        return None
+    
+    frente_pessoa = df_pessoa['Frente de atuação'].iloc[0]
+    df_frente = df_total[df_total['Frente de atuação'] == frente_pessoa]
+    
+    categorias = {
+        'Visão Sistêmica': [
+            'Visao Sistemica_Identifica desafios',
+            'Visao Sistematica_Compartilha ferramentas',
+            'Visao Sistemica_Colabora com as demais frentes',
+            'Visao Sistemica_Compreensao do impacto'
+        ],
+        'Gestão e Liderança': [
+            'Gestao e Lideranca_Canal aberto',
+            'Gestao e Lideranca_Incentiva e colabora',
+            'Gestao e Lideranca_Autogestao de tempo'
+        ],
+        'Relacionamento': [
+            'Relacionamento_Cativa parceiros',
+            'Relacionamento_Cria vinculos'
+        ],
+        'Comunicação': [
+            'Comunicacao_Assertivo',
+            'Comunicacao_Nao Violenta',
+            'Comunicacao_Postura Profissional'
+        ],
+        'Aprendizagem e Desenvolvimento': [
+            'Aprendizagem_Compartilha experiencia',
+            'Aprendizagem_Conhecimentos de fontes internas e externas',
+            'Aprendizagem_Busca se desenvolver',
+            'Aprendizagem_Autonomia'
+        ],
+        'Execução': [
+            'Execucao_Resolve as dificuldades',
+            'Execucao_Imprevistos e alteracoes',
+            'Execucao_Ideias em Acoes'
+        ]
+    }
+    
+    # Função para calcular média considerando as 3 fontes separadamente
+    def calcular_media_tres_fontes(df, categorias_dict):
+        medias_categoria = []
+        
+        for categoria, questoes in categorias_dict.items():
+            questoes_existentes = [q for q in questoes if q in df.columns]
+            
+            if questoes_existentes:
+                notas_por_fonte = {'autoavaliacao': [], 'avaliacao_pelo_lider': [], 'avaliacao_pelo_liderado': []}
+                
+                # Coletar notas por fonte
+                for tipo in notas_por_fonte.keys():
+                    df_tipo = df[df['Tipo'] == tipo]
+                    if not df_tipo.empty:
+                        for questao in questoes_existentes:
+                            notas = df_tipo[questao].dropna()
+                            if not notas.empty:
+                                notas_por_fonte[tipo].extend(notas.tolist())
+                
+                # Calcular média de cada fonte
+                medias_fontes = []
+                for tipo, notas in notas_por_fonte.items():
+                    if notas:
+                        medias_fontes.append(sum(notas) / len(notas))
+                
+                # Calcular média final (média das médias das fontes disponíveis)
+                if medias_fontes:
+                    media_final = sum(medias_fontes) / len(medias_fontes)
+                    medias_categoria.append(media_final)
+                else:
+                    medias_categoria.append(0)
+            else:
+                medias_categoria.append(0)
+        
+        return medias_categoria
+    
+    # Calcular médias
+    medias_pessoa = calcular_media_tres_fontes(df_pessoa, categorias)
+    medias_frente = calcular_media_tres_fontes(df_frente, categorias)
+    medias_total = calcular_media_tres_fontes(df_total, categorias)
+    
+    # Resto do código igual à primeira versão...
+    # ... (configuração do gráfico, plotagem, etc.)
+    
+    # Configurar radar
+    N = len(categorias)
+    angulos = [n / float(N) * 2 * np.pi for n in range(N)]
+    angulos += angulos[:1]
+    
+    medias_pessoa_fechado = medias_pessoa + [medias_pessoa[0]]
+    medias_frente_fechado = medias_frente + [medias_frente[0]]
+    medias_total_fechado = medias_total + [medias_total[0]]
+    
+    fig, ax = plt.subplots(figsize=(8, 8), subplot_kw=dict(projection='polar'))
+    
+    cores = {
+        'Pessoa': '#1f77b4',
+        'Frente': '#ff7f0e',
+        'Total': '#2ca02c'
+    }
+    
+    ax.plot(angulos, medias_pessoa_fechado, 'o-', linewidth=2, 
+            label=f'{nome_pessoa}', color=cores['Pessoa'])
+    ax.fill(angulos, medias_pessoa_fechado, alpha=0.1, color=cores['Pessoa'])
+    
+    ax.plot(angulos, medias_frente_fechado, 'o-', linewidth=2, 
+            label=f'Frente: {frente_pessoa}', color=cores['Frente'])
+    ax.fill(angulos, medias_frente_fechado, alpha=0.1, color=cores['Frente'])
+    
+    ax.plot(angulos, medias_total_fechado, 'o-', linewidth=2, 
+            label='Projeto GA-RN', color=cores['Total'])
+    ax.fill(angulos, medias_total_fechado, alpha=0.1, color=cores['Total'])
+    
+    # Configuração do gráfico...
+    ax.set_xticks(angulos[:-1])
+    ax.set_xticklabels(list(categorias.keys()), fontsize=11)
+    
+    # Ajustar labels (mesmo código da original)...
+    for label, angle in zip(ax.get_xticklabels(), angulos[:-1]):
+        texto = label.get_text()
+        if 0 <= angle < np.pi:
+            alinhamento = 'left'
+        else:
+            alinhamento = 'right'
+        if texto == 'Relacionamento':
+            alinhamento = 'right'
+        if texto == 'Execução':
+            alinhamento = 'left'
+        label.set_horizontalalignment(alinhamento)
+        label.set_rotation(angle * 180 / np.pi - 90)
+    
+    ax.set_ylim(0, 5)
+    ax.set_yticks([1, 2, 3, 4, 5])
+    ax.set_yticklabels(['1', '2', '3', '4', '5'], fontsize=9)
+    ax.grid(True, alpha=0.3)
+    
+    ax.legend(loc='upper left', bbox_to_anchor=(-0.35, 1.25), 
+              fontsize=10, framealpha=0.9)
+    
+    
+    caminho_grafico = os.path.join(DIRETORIO_GRAFICOS_TEMP, f"radar_comparativo_v2_{nome_pessoa.replace(' ', '_')}.png")
+    fig.savefig(caminho_grafico, dpi=150, bbox_inches='tight', pad_inches=0.5)
+    plt.close(fig)
+    
+    return caminho_grafico
+
 
 def gerar_relatorio_pessoa(nome_pessoa, df_total):
     """Gera relatório para uma pessoa específica"""
@@ -445,6 +821,7 @@ def gerar_relatorio_pessoa(nome_pessoa, df_total):
     
     # Carregar template
     prs = Presentation(CAMINHO_TEMPLATE)
+
 
 
     # =================== SLIDE 1: CAPA ===================
@@ -463,70 +840,97 @@ def gerar_relatorio_pessoa(nome_pessoa, df_total):
                     run.font.bold = True    # Negrito
             
             break  # Parar após encontrar o primeiro placeholder {{nome}}
+
+
+# =================== SLIDE 1: AVALIAÇÕES RECEBIDAS ===================
+    slide1 = prs.slides[1]  # Slide 2 (índice 1)
+
+    # Obter lideres e liderados (qualquer linha serve, mas garantir que não seja NaN)
+    linha_base = df_pessoa.iloc[0]
+
+    # Tratar valores NaN
+    lista_lideres = linha_base['Lideres'] if pd.notna(linha_base['Lideres']) else ""
+    lista_liderados = linha_base['Liderados'] if pd.notna(linha_base['Liderados']) else ""
+
+    # Função para limpar e formatar a lista
+    def formatar_lista(lista_str):
+        if not lista_str or pd.isna(lista_str):
+            return []
+        
+        # Se for string que parece lista
+        if isinstance(lista_str, str):
+            if lista_str.startswith('[') and lista_str.endswith(']'):
+                # Remover colchetes e dividir
+                conteudo = lista_str[1:-1]
+                # Dividir por vírgula e limpar
+                itens = [item.strip().strip("'\"") for item in conteudo.split(',') if item.strip()]
+                return itens
+            elif ',' in lista_str:
+                # Dividir por vírgula
+                return [item.strip() for item in lista_str.split(',') if item.strip()]
+            else:
+                # Único item
+                return [lista_str.strip()] if lista_str.strip() else []
+        elif isinstance(lista_str, list):
+            return [str(item).strip() for item in lista_str if str(item).strip()]
+        return []
+
+    # Formatar as listas
+    lideres_formatado = formatar_lista(lista_lideres)
+    liderados_formatado = formatar_lista(lista_liderados)
+
+    # Substituir placeholders com a nova função
+    substituir_lista_em_placeholder(
+        slide1,
+        "lideres",
+        lideres_formatado,
+        texto_vazio="Não houve avaliações de líderes"
+    )
+
+    substituir_lista_em_placeholder(
+        slide1,
+        "liderados",
+        liderados_formatado,
+        texto_vazio="Não houve avaliações de liderados"
+    )
+
+
+
+    # =================== SLIDE 3: COMPETÊNCIAS GERAIS ===================
+    slide2 = prs.slides[2]
     
-    # =================== SLIDE 2: COMPETÊNCIAS GERAIS ===================
-    slide1 = prs.slides[1]
-    
+    cor_nota = "#CC8A42"
+
     # Calcular médias gerais
     nota_auto = calcular_medias_tipo(df_pessoa, 'autoavaliacao', COLUNAS_GERAIS)
     nota_lider = calcular_medias_tipo(df_pessoa, 'avaliacao_pelo_lider', COLUNAS_GERAIS)
     nota_liderado = calcular_medias_tipo(df_pessoa, 'avaliacao_pelo_liderado', COLUNAS_GERAIS)
-    
-    cor_nota = "#CC8A42"
+
+
+    nota_geral = calcular_nota_geral(
+        nota_auto.mean() if nota_auto is not None else None,
+        nota_lider.mean() if nota_lider is not None else None,
+        nota_liderado.mean() if nota_liderado is not None else None
+    )
 
     # Substituir placeholders de notas
-    substituir_texto_formatado(slide1, "nota_auto", 
+    substituir_texto_formatado(slide2, "nota_auto", 
                             formatar_nota(nota_auto.mean() if nota_auto is not None else None),
                             tamanho_fonte=14, cor_hex=cor_nota, centralizar=True)
-    substituir_texto_formatado(slide1, "nota_lider", 
+    substituir_texto_formatado(slide2, "nota_lider", 
                             formatar_nota(nota_lider.mean() if nota_lider is not None else None),
                             tamanho_fonte=14, cor_hex=cor_nota, centralizar=True)
-    substituir_texto_formatado(slide1, "nota_liderado", 
+    substituir_texto_formatado(slide2, "nota_liderado", 
                             formatar_nota(nota_liderado.mean() if nota_liderado is not None else None),
                             tamanho_fonte=14, cor_hex=cor_nota, centralizar=True)
+    substituir_texto_formatado(slide2, "nota_geral", 
+                            formatar_nota(nota_geral.mean() if nota_geral is not None else None),
+                            tamanho_fonte=14, cor_hex=cor_nota, centralizar=False)   
     
     # Gerar e adicionar radar geral
     radar_geral_path = criar_radar_geral(df_pessoa)
     if radar_geral_path:
         # Substituir placeholder de radar
-        for shape in slide1.shapes:
-            if hasattr(shape, "text") and "{{radar_geral}}" in shape.text:
-                left = shape.left
-                top = shape.top
-                width = shape.width
-                height = shape.height
-                
-                # Remover placeholder
-                sp = shape._element
-                sp.getparent().remove(sp)
-                
-                # Adicionar imagem do radar
-                slide1.shapes.add_picture(radar_geral_path, left, top, width, height)
-                break
-    
-    # =================== SLIDE 3: COMPETÊNCIAS DE LIDERANÇA ===================
-    slide2 = prs.slides[2]
-    
-    # Calcular médias de liderança
-    nota_lider_auto = calcular_medias_tipo(df_pessoa, 'autoavaliacao', COLUNAS_LIDERANCA)
-    nota_lider_lider = calcular_medias_tipo(df_pessoa, 'avaliacao_pelo_lider', COLUNAS_LIDERANCA)
-    nota_lider_liderado = calcular_medias_tipo(df_pessoa, 'avaliacao_pelo_liderado', COLUNAS_LIDERANCA)
-    
-    # Substituir placeholders
-    substituir_texto_formatado(slide2, "nota_lider_auto", 
-                            formatar_nota(nota_lider_auto.mean() if nota_lider_auto is not None else None),
-                            tamanho_fonte=14, cor_hex=cor_nota, centralizar=True)
-    substituir_texto_formatado(slide2, "nota_lider_lider", 
-                            formatar_nota(nota_lider_lider.mean() if nota_lider_lider is not None else None),
-                            tamanho_fonte=14, cor_hex=cor_nota, centralizar=True)
-    substituir_texto_formatado(slide2, "nota_lider_liderado", 
-                            formatar_nota(nota_lider_liderado.mean() if nota_lider_liderado is not None else None),
-                            tamanho_fonte=14, cor_hex=cor_nota, centralizar=True)
-    
-    # Gerar e adicionar radar de liderança
-    radar_lideranca_path = criar_radar_lideranca(df_pessoa)
-    if radar_lideranca_path:
-        # Substituir placeholder de radar (segundo slide)
         for shape in slide2.shapes:
             if hasattr(shape, "text") and "{{radar_geral}}" in shape.text:
                 left = shape.left
@@ -539,10 +943,82 @@ def gerar_relatorio_pessoa(nome_pessoa, df_total):
                 sp.getparent().remove(sp)
                 
                 # Adicionar imagem do radar
-                slide2.shapes.add_picture(radar_lideranca_path, left, top, width, height)
+                slide2.shapes.add_picture(radar_geral_path, left, top, width, height)
                 break
     
-    # =================== SLIDES 5-...: DETALHAMENTO DAS COMPETÊNCIAS ===================
+    # =================== SLIDE 4: COMPETÊNCIAS DE LIDERANÇA ===================
+    slide3 = prs.slides[3]
+
+    # Calcular médias de liderança
+    nota_lider_auto = calcular_medias_tipo(df_pessoa, 'autoavaliacao', COLUNAS_LIDERANCA)
+    nota_lider_lider = calcular_medias_tipo(df_pessoa, 'avaliacao_pelo_lider', COLUNAS_LIDERANCA)
+    nota_lider_liderado = calcular_medias_tipo(df_pessoa, 'avaliacao_pelo_liderado', COLUNAS_LIDERANCA)
+
+
+    nota_lider_geral = calcular_nota_geral(
+        nota_lider_auto.mean() if nota_lider_auto is not None else None,
+        nota_lider_lider.mean() if nota_lider_lider is not None else None,
+        nota_lider_liderado.mean() if nota_lider_liderado is not None else None
+    )
+
+    # Substituir placeholders
+    substituir_texto_formatado(slide3, "nota_lider_auto", 
+                            formatar_nota(nota_lider_auto.mean() if nota_lider_auto is not None else None),
+                            tamanho_fonte=14, cor_hex=cor_nota, centralizar=True)
+    substituir_texto_formatado(slide3, "nota_lider_lider", 
+                            formatar_nota(nota_lider_lider.mean() if nota_lider_lider is not None else None),
+                            tamanho_fonte=14, cor_hex=cor_nota, centralizar=True)
+    substituir_texto_formatado(slide3, "nota_lider_liderado", 
+                            formatar_nota(nota_lider_liderado.mean() if nota_lider_liderado is not None else None),
+                            tamanho_fonte=14, cor_hex=cor_nota, centralizar=True)
+    substituir_texto_formatado(slide3, "nota_lider_geral", 
+                            formatar_nota(nota_lider_geral.mean() if nota_lider_geral is not None else None),
+                            tamanho_fonte=14, cor_hex=cor_nota, centralizar=False)
+
+    # Gerar e adicionar radar de liderança
+    radar_lideranca_path = criar_radar_lideranca(df_pessoa)
+    if radar_lideranca_path:
+        # Substituir placeholder de radar (segundo slide)
+        for shape in slide3.shapes:
+            if hasattr(shape, "text") and "{{radar_geral}}" in shape.text:
+                left = shape.left
+                top = shape.top
+                width = shape.width
+                height = shape.height
+                
+                # Remover placeholder
+                sp = shape._element
+                sp.getparent().remove(sp)
+                
+                # Adicionar imagem do radar
+                slide3.shapes.add_picture(radar_lideranca_path, left, top, width, height)
+                break
+
+    # =================== SLIDE 5: COMPARATIVO: COMPETÊNCIAS GERAIS ===================
+    slide4 = prs.slides[4]
+
+    # Gerar e adicionar radar comparativo
+    radar_comparativo_path = criar_radar_comparativo(df_total, nome_pessoa)
+
+    if radar_comparativo_path:
+        for shape in slide4.shapes:
+            if hasattr(shape, "text") and "{{radar_geral_comparativo}}" in shape.text:
+                left = shape.left
+                top = shape.top
+                width = shape.width
+                height = shape.height
+                
+                # Remover placeholder
+                sp = shape._element
+                sp.getparent().remove(sp)
+                
+                # Adicionar imagem do radar
+                slide4.shapes.add_picture(radar_comparativo_path, left, top, width, height)
+                break
+
+
+
+    # =================== SLIDES 7-...: DETALHAMENTO DAS COMPETÊNCIAS ===================
     # Para cada questão, gerar gráfico e substituir no slide correspondente
     for questao, placeholder in MAPEAMENTO_QUESTOES_GRAFICOS.items():
         # Encontrar qual slide tem este placeholder
@@ -567,66 +1043,191 @@ def gerar_relatorio_pessoa(nome_pessoa, df_total):
                     
                     break
     
+
+
+
+
+
+
+
+
+
+
     # =================== SLIDES FINAIS: QUESTÕES ABERTAS ===================
+
+    def extrair_respostas_abertas_por_tipo(df_pessoa):
+        """Extrai todas as respostas abertas para cada tipo, mantendo todas as linhas"""
+        respostas_por_tipo = {}
+        
+        for tipo in ['autoavaliacao', 'avaliacao_pelo_lider', 'avaliacao_pelo_liderado']:
+            df_tipo = df_pessoa[df_pessoa['Tipo'] == tipo]
+            
+            # Inicializar listas vazias
+            pontos_fortes = []
+            oportunidades = []
+            
+            if not df_tipo.empty:
+                # Extrair TODAS as respostas (não apenas únicas)
+                for _, row in df_tipo.iterrows():
+                    # Pontos Fortes
+                    pf = row['Pontos Fortes']
+                    if pd.notna(pf) and str(pf).strip():
+                        pontos_fortes.append(str(pf).strip())
+                    
+                    # Oportunidades de Desenvolvimento
+                    od = row['Oportunidades de Desenvolvimento']
+                    if pd.notna(od) and str(od).strip():
+                        oportunidades.append(str(od).strip())
+            
+            # Se não houver respostas, usar texto padrão
+            respostas_por_tipo[tipo] = {
+                'PF': pontos_fortes if pontos_fortes else ["Não houve resposta"],
+                'OD': oportunidades if oportunidades else ["Não houve resposta"]
+            }
+        
+        return respostas_por_tipo
+
     # Extrair respostas abertas
-    respostas_por_tipo = {}
-    for tipo in ['autoavaliacao', 'avaliacao_pelo_lider', 'avaliacao_pelo_liderado']:
-        df_tipo = df_pessoa[df_pessoa['Tipo'] == tipo]
-        if not df_tipo.empty:
-            pontos_fortes = df_tipo['Pontos Fortes'].dropna().unique()
-            oportunidades = df_tipo['Oportunidades de Desenvolvimento'].dropna().unique()
-            
-            # Juntar todas as respostas
-            pf_texto = '; '.join([str(pf).strip() for pf in pontos_fortes if str(pf).strip() != ''])
-            od_texto = '; '.join([str(od).strip() for od in oportunidades if str(od).strip() != ''])
-            
-            # Limitar se for muito longo (para visualização inicial)
-            if len(pf_texto) > 800:
-                pf_texto = pf_texto[:797] + "..."
-            if len(od_texto) > 800:
-                od_texto = od_texto[:797] + "..."
-            
-            respostas_por_tipo[tipo] = {
-                'PF': pf_texto if pf_texto else "Não informado",
-                'OD': od_texto if od_texto else "Não informado"
-            }
-        else:
-            respostas_por_tipo[tipo] = {
-                'PF': "Não se aplica",
-                'OD': "Não se aplica"
-            }
-    
-    # Mapeamento dos placeholders para cada slide (agora com índice correto)
-    # VERIFIQUE OS ÍNDICES CORRETOS COM O CÓDIGO DE DEBUG ANTERIOR
+    respostas_por_tipo = extrair_respostas_abertas_por_tipo(df_pessoa)
+
+    # Mapeamento CORRETO dos placeholders para cada slide
+    # Slide 27: PF_auto, Slide 28: PF_lider, Slide 29: PF_liderado
+    # Slide 30: OD_auto, Slide 31: OD_lider, Slide 32: OD_liderado
     mapeamento_placeholders = [
-        (24, "PF_auto", respostas_por_tipo['autoavaliacao']['PF']),
-        (25, "PF_lider", respostas_por_tipo['avaliacao_pelo_lider']['PF']),
-        (26, "PF_liderado", respostas_por_tipo['avaliacao_pelo_liderado']['PF']),
-        (27, "OD_auto", respostas_por_tipo['autoavaliacao']['OD']),
-        (28, "OD_lider", respostas_por_tipo['avaliacao_pelo_lider']['OD']),
-        (29, "OD_liderado", respostas_por_tipo['avaliacao_pelo_liderado']['OD'])
+        (26, "PF_auto", respostas_por_tipo['autoavaliacao']['PF']),
+        (27, "PF_lider", respostas_por_tipo['avaliacao_pelo_lider']['PF']),
+        (28, "PF_liderado", respostas_por_tipo['avaliacao_pelo_liderado']['PF']),
+        (29, "OD_auto", respostas_por_tipo['autoavaliacao']['OD']),
+        (30, "OD_lider", respostas_por_tipo['avaliacao_pelo_lider']['OD']),
+        (31, "OD_liderado", respostas_por_tipo['avaliacao_pelo_liderado']['OD'])
     ]
-    
-    # Primeiro, substituir todos os placeholders
-    for slide_idx, placeholder, valor in mapeamento_placeholders:
+
+    print(f"Total de slides na apresentação: {len(prs.slides)}")
+
+    # Função para substituir texto com formatação específica
+    def substituir_texto_formatado2(slide, placeholder_tag, lista_respostas, cor_hex="#C4803F"):
+        """
+        Substitui um placeholder por uma lista de respostas, cada uma em um parágrafo.
+        """
+        for shape in slide.shapes:
+            if not hasattr(shape, "text"):
+                continue
+                
+            if not shape.has_text_frame:
+                continue
+                
+            # Verificar se o placeholder está no texto da shape
+            texto_shape = shape.text
+            
+            if f"{{{{{placeholder_tag}}}}}" in texto_shape:
+                print(f"  Encontrado placeholder {{{{{placeholder_tag}}}}} no slide {prs.slides.index(slide)}")
+                
+                # Limpar o texto atual
+                shape.text = ""
+                
+                # Adicionar o novo texto
+                text_frame = shape.text_frame
+                text_frame.clear()
+                
+                # Converter cor hex para RGB
+                cor_rgb = RGBColor(
+                    int(cor_hex[1:3], 16),
+                    int(cor_hex[3:5], 16),
+                    int(cor_hex[5:7], 16)
+                )
+                
+                # Adicionar cada resposta como um parágrafo separado
+                for i, resposta in enumerate(lista_respostas):
+                    # Verificar se a resposta não é vazia
+                    if not resposta or resposta == "":
+                        continue
+                        
+                    # Adicionar parágrafo
+                    p = text_frame.add_paragraph()
+                    p.text = resposta
+                    
+                    # Formatar o parágrafo
+                    p.alignment = PP_ALIGN.LEFT
+                    p.space_before = Pt(0)
+                    
+                    # Formatar cada run no parágrafo
+                    for run in p.runs:
+                        run.font.size = Pt(11)  # Tamanho ligeiramente maior para melhor leitura
+                        run.font.color.rgb = cor_rgb
+                        run.font.name = 'Calibri'
+                    
+                    # Adicionar espaço após o parágrafo (exceto no último)
+                    if i < len(lista_respostas) - 1:
+                        p.space_after = Pt(8)
+                
+                return True
+        
+        return False
+
+    # Substituir todos os placeholders
+    for slide_idx, placeholder, lista_respostas in mapeamento_placeholders:
         if slide_idx < len(prs.slides):
-            substituir_texto_no_slide(prs.slides[slide_idx], placeholder, valor, max_caracteres=800)
-    
-    # Verificar textos muito longos e dividir em slides adicionais
-    slides_para_processar = []
-    for slide_idx, placeholder, valor in mapeamento_placeholders:
-        if slide_idx < len(prs.slides) and len(str(valor)) > 800:
-            slides_para_processar.append((slide_idx, placeholder, valor))
-    
-    # Processar divisão de slides (em ordem reversa para não afetar índices)
-    slides_para_processar.sort(reverse=True)  # Do último para o primeiro
-    for slide_idx, placeholder, valor in slides_para_processar:
-        if len(str(valor)) > 800:
-            dividir_texto_em_slides(prs, str(valor), slide_idx, placeholder, max_caracteres=800)
-    
-    # Limpar todos os placeholders restantes
+            slide = prs.slides[slide_idx]
+            print(f"Processando slide {slide_idx}: placeholder {{{{{placeholder}}}}} com {len(lista_respostas)} respostas")
+            
+            # Verificar se há respostas
+            if lista_respostas and len(lista_respostas) > 0:
+                print(f"  Primeira resposta: {lista_respostas[0][:50]}..." if len(lista_respostas[0]) > 50 else f"  Primeira resposta: {lista_respostas[0]}")
+            
+            # Substituir o placeholder
+            sucesso = substituir_texto_formatado2(slide, placeholder, lista_respostas)
+            
+            if sucesso:
+                print(f"  ✓ Placeholder substituído com sucesso")
+            else:
+                print(f"  ✗ Placeholder NÃO encontrado no slide")
+        else:
+            print(f"AVISO: Slide {slide_idx} não existe na apresentação")
+
+    # Função para limpar placeholders não substituídos
+    def limpar_placeholders_restantes(slide):
+        """Remove placeholders não substituídos"""
+        for shape in slide.shapes:
+            if hasattr(shape, "text") and shape.has_text_frame:
+                texto_original = shape.text
+                
+                # Verificar se há placeholders no formato {{...}}
+                if "{{" in texto_original and "}}" in texto_original:
+                    # Usar regex para encontrar todos os placeholders
+                    import re
+                    # Encontrar todos os padrões {{...}}
+                    placeholders = re.findall(r'\{\{[^{}]+\}\}', texto_original)
+                    
+                    if placeholders:
+                        # Substituir cada placeholder por string vazia
+                        for ph in placeholders:
+                            texto_original = texto_original.replace(ph, '')
+                        
+                        # Atualizar o texto da shape
+                        shape.text = texto_original
+                        
+                        # Limpar formatação se o texto ficou vazio
+                        if texto_original.strip() == "":
+                            for paragraph in shape.text_frame.paragraphs:
+                                for run in paragraph.runs:
+                                    run.text = ""
+
+    # Limpar placeholders restantes em todos os slides
     for slide in prs.slides:
-        limpar_placeholders(slide)
+        limpar_placeholders_restantes(slide)
+
+    print("Processamento das questões abertas concluído!")
+
+
+
+
+
+
+
+
+
+
+
     
     # Salvar apresentação
     nome_arquivo = f"Relatorio_{nome_pessoa.replace(' ', '_').replace('/', '_')}.pptx"
@@ -654,72 +1255,7 @@ def limpar_arquivos_temporarios(df_pessoa):
         except:
             pass
 
-def dividir_texto_em_slides(prs, texto, slide_template_idx, placeholder, max_caracteres=800):
-    """
-    Divide texto longo em múltiplos slides.
-    Retorna a lista de slides criados (incluindo o original modificado)
-    """
-    if len(texto) <= max_caracteres:
-        return [slide_template_idx]
-    
-    slides_criados = [slide_template_idx]
-    partes = []
-    
-    # Dividir o texto em parágrafos primeiro
-    paragrafos = texto.split('; ')
-    
-    parte_atual = ""
-    for paragrafo in paragrafos:
-        if len(parte_atual) + len(paragrafo) + 2 <= max_caracteres:
-            if parte_atual:
-                parte_atual += "; " + paragrafo
-            else:
-                parte_atual = paragrafo
-        else:
-            if parte_atual:
-                partes.append(parte_atual)
-            parte_atual = paragrafo
-    
-    if parte_atual:
-        partes.append(parte_atual)
-    
-    # Se só tem uma parte, retorna o slide original
-    if len(partes) <= 1:
-        return [slide_template_idx]
-    
-    # Pegar o slide original como template
-    slide_original = prs.slides[slide_template_idx]
-    layout_original = slide_original.slide_layout
-    
-    # Modificar o slide original com a primeira parte
-    substituir_texto_no_slide(slide_original, placeholder, partes[0] + " (continua...)")
-    
-    # Criar slides adicionais para as partes restantes
-    for i, parte in enumerate(partes[1:], 1):
-        novo_slide = prs.slides.add_slide(layout_original)
-        slides_criados.append(len(prs.slides) - 1)
-        
-        # Copiar o título do slide original
-        for shape_orig in slide_original.shapes:
-            if shape_orig.has_text_frame and shape_orig.text_frame.text:
-                # Verificar se é o título (geralmente é a primeira forma com texto)
-                for shape_novo in novo_slide.shapes:
-                    if shape_novo.has_text_frame:
-                        # Manter o título original
-                        if "(continuação" not in shape_novo.text_frame.text:
-                            # Adicionar indicação de continuação
-                            for paragraph in shape_novo.text_frame.paragraphs:
-                                for run in paragraph.runs:
-                                    if f"{{{{{placeholder}}}}}" not in run.text:
-                                        run.text = run.text + f" (continuação {i+1})"
-        
-        # Substituir o placeholder no novo slide
-        if i == len(partes) - 2:  # Penúltima parte
-            substituir_texto_no_slide(novo_slide, placeholder, parte)
-        else:
-            substituir_texto_no_slide(novo_slide, placeholder, parte + " (continua...)")
-    
-    return slides_criados
+
 
 # =================== FUNÇÃO PRINCIPAL ===================
 def gerar_relatorios_todos(df_total):
