@@ -1,6 +1,7 @@
 # Ignorar toda a pasta dados
 dados/
 relatorios_gerados/
+relatorios_pdf/
 
 # Ignorar ambiente virtual
 venv/

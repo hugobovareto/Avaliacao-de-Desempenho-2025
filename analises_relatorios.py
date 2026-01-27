@@ -1,3 +1,4 @@
+from glob import glob
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -11,6 +12,8 @@ from pptx.dml.color import RGBColor
 import warnings
 from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
 warnings.filterwarnings('ignore')
+import win32com.client
+import glob
 
 
 # RELATÓRIOS INDIVIDUAIS EM PPT
@@ -1304,4 +1307,27 @@ if __name__ == "__main__":
 
 
 
+# Salvar os relatórios da pasta 'relatorios_gerados' em PDF na pasta 'relatorios_pdf'
+
+pasta_ppt = "relatorios_gerados"
+pasta_pdf = "relatorios_pdf"
+
+os.makedirs(pasta_pdf, exist_ok=True)
+
+powerpoint = win32com.client.Dispatch("PowerPoint.Application")
+powerpoint.Visible = 1
+
+arquivos_pptx = glob.glob(os.path.join(pasta_ppt, "*.pptx"))
+
+for arquivo in arquivos_pptx:
+    presentation = powerpoint.Presentations.Open(os.path.abspath(arquivo))
+    
+    nome_pdf = os.path.splitext(os.path.basename(arquivo))[0] + ".pdf"
+    caminho_pdf = os.path.join(pasta_pdf, nome_pdf)
+    
+    # 32 = formato PDF
+    presentation.SaveAs(os.path.abspath(caminho_pdf), 32)
+    presentation.Close()
+
+powerpoint.Quit()
 
