@@ -393,7 +393,7 @@ def substituir_respostas_abertas(slide, placeholder_tag, lista_respostas, texto_
                 for run in p.runs:
                     run.font.size = Pt(10)
                     run.font.color.rgb = RGBColor(0xC4, 0x80, 0x3F)  # #C4803F
-                    run.font.name = 'Calibri'
+                    run.font.name = 'Nunito'
             else:
                 # Adicionar cada resposta como um parágrafo separado
                 for i, resposta in enumerate(lista_respostas):
@@ -406,7 +406,7 @@ def substituir_respostas_abertas(slide, placeholder_tag, lista_respostas, texto_
                     for run in p.runs:
                         run.font.size = Pt(10)
                         run.font.color.rgb = RGBColor(0, 0, 0)  # Preto para respostas
-                        run.font.name = 'Calibri'
+                        run.font.name = 'Nunito'
                     
                     # Adicionar espaço entre parágrafos (exceto no último)
                     if i < len(lista_respostas) - 1:
@@ -1046,13 +1046,7 @@ def gerar_relatorio_pessoa(nome_pessoa, df_total):
 
 
 
-
-
-
-
-
-
-
+ 
     # =================== SLIDES FINAIS: QUESTÕES ABERTAS ===================
 
     def extrair_respostas_abertas_por_tipo(df_pessoa):
@@ -1152,9 +1146,9 @@ def gerar_relatorio_pessoa(nome_pessoa, df_total):
                     
                     # Formatar cada run no parágrafo
                     for run in p.runs:
-                        run.font.size = Pt(11)  # Tamanho ligeiramente maior para melhor leitura
+                        run.font.size = Pt(9)  # Tamanho ligeiramente maior para melhor leitura
                         run.font.color.rgb = cor_rgb
-                        run.font.name = 'Calibri'
+                        run.font.name = 'Nunito'
                     
                     # Adicionar espaço após o parágrafo (exceto no último)
                     if i < len(lista_respostas) - 1:
@@ -1217,10 +1211,6 @@ def gerar_relatorio_pessoa(nome_pessoa, df_total):
         limpar_placeholders_restantes(slide)
 
     print("Processamento das questões abertas concluído!")
-
-
-
-
 
 
 
