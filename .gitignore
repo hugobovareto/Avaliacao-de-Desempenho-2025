@@ -12,3 +12,7 @@ venv/
 # Ignorar arquivos do Python
 *.pyc
 __pycache__/
+
+
+# Ignorar aquivos .pdf
+*.pdf
