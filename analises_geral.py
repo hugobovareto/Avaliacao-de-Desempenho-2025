@@ -189,7 +189,100 @@ plot_matriz_9box(
 )
 
 # 3º Gráfico: Autoavaliação x Média de Terceiros
-plot_matriz_9box(
+# Fazer nova função para ter os nomes dos quadrantes diferentes
+def plot_matriz_9box_autopercepcao(df, eixo_x, eixo_y, titulo, coluna_cor='Nome', salvar_pdf=None):
+
+    fig, ax = plt.subplots(figsize=(10, 7))
+
+    # Limites
+    ax.set_xlim(0, 5)
+    ax.set_ylim(0, 5)
+
+    # Cortes
+    cut_x1, cut_x2 = 1.67, 3.33
+    cut_y1, cut_y2 = 1.67, 3.33
+
+    # ======================
+    # FUNDO DOS QUADRANTES
+    # ======================
+
+    # Inferior
+    ax.axvspan(0, cut_x1, ymin=0, ymax=cut_y1/5, alpha=0.4, color='#c58b9b')
+    ax.axvspan(cut_x1, cut_x2, ymin=0, ymax=cut_y1/5, alpha=0.4, color='#e5d7a5')
+    ax.axvspan(cut_x2, 5, ymin=0, ymax=cut_y1/5, alpha=0.4, color='#8fb7cc')
+
+    # Meio
+    ax.axvspan(0, cut_x1, ymin=cut_y1/5, ymax=cut_y2/5, alpha=0.4, color='#e5d7a5')
+    ax.axvspan(cut_x1, cut_x2, ymin=cut_y1/5, ymax=cut_y2/5, alpha=0.4, color='#8fb7cc')
+    ax.axvspan(cut_x2, 5, ymin=cut_y1/5, ymax=cut_y2/5, alpha=0.4, color='#9ccdbf')
+
+    # Superior
+    ax.axvspan(0, cut_x1, ymin=cut_y2/5, ymax=1, alpha=0.4, color='#8fb7cc')
+    ax.axvspan(cut_x1, cut_x2, ymin=cut_y2/5, ymax=1, alpha=0.4, color='#9ccdbf')
+    ax.axvspan(cut_x2, 5, ymin=cut_y2/5, ymax=1, alpha=0.4, color='#8ecbb8')
+
+    # ======================
+    # LINHAS DE CORTE
+    # ======================
+    ax.axvline(cut_x1, linestyle='--', color='black')
+    ax.axvline(cut_x2, linestyle='--', color='black')
+    ax.axhline(cut_y1, linestyle='--', color='black')
+    ax.axhline(cut_y2, linestyle='--', color='black')
+
+    # ======================
+    # DEFINIR CORES
+    # ======================
+
+    # Converte categoria para números
+    categorias = df[coluna_cor].astype('category')
+    cores = categorias.cat.codes
+
+    scatter = ax.scatter(
+        df[eixo_x],
+        df[eixo_y],
+        c=cores,
+        cmap='tab20',   # paleta com várias cores distintas
+        s=70,
+        edgecolors='black'
+    )
+
+    # ======================
+    # TEXTOS DOS QUADRANTES
+    # ======================
+    labels = [
+        ("Desempenho Insuficiente", 0.8, 0.4),
+        ("Autopercepção Desalinhada", 2.5, 0.4),
+        ("Autopercepção Inflada", 4.2, 0.4),
+
+        ("Desempenho em Curso", 0.8, 2.4),
+        ("Adequado", 2.5, 2.4),
+        ("Autoconfiança Elevada", 4.2, 2.4),
+
+        ("Potencial Subestimado", 0.8, 4.4),
+        ("Forte Desempenho", 2.5, 4.4),
+        ("Alto Desempenho e Confiante", 4.2, 4.4),
+    ]
+
+    for text, x, y in labels:
+        ax.text(x, y, text, ha='center', va='center', fontsize=10, weight='bold')
+
+    # ======================
+    # TÍTULO
+    # ======================
+    ax.set_title(titulo, fontsize=14, weight='bold')
+    ax.set_xlabel(eixo_x)
+    ax.set_ylabel(eixo_y)
+
+    # Salvar PDF se caminho for informado
+    if salvar_pdf:
+        plt.savefig(salvar_pdf, bbox_inches='tight')
+
+    plt.show()
+
+
+
+# 3º Gráfico: Autoavaliação x Média de Terceiros
+plot_matriz_9box_autopercepcao(
     df_resultado,
     'autoavaliacao',
     'Media Terceiros (lider + liderado)',
